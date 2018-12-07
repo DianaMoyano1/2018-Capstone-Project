@@ -1,0 +1,508 @@
+---
+title: "Capstone"
+author: "Diana Moyano"
+date: '2018-11-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Installing and loading packages
+```{r, echo=FALSE, include=FALSE }
+
+packages <- c("rmarkdown", "knitr", "plyr","magrittr","tidyverse", "arules", "arulesViz" )
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) {
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+
+library(rmarkdown)
+library(knitr)
+library(magrittr)
+library(plyr)
+library(arules)
+library(arulesViz)
+library(tidyverse)
+
+#setwd("/Volumes/Eos/Google Drive/diana_moyano_ovalle/Courses/Git/Capstone_Project")
+```
+
+
+```{r}
+
+RetailF<- read.csv("Association_Rules/Retail_w_Clusters.csv", quote= "\"'", header=T)
+
+RetailF<- RetailF %>% mutate(Date_Order = as.Date(Date_Order, format="%Y-%m-%d")) %>% mutate(CustomerID = factor(CustomerID)) %>% mutate(InvoiceNo = factor(InvoiceNo))
+
+head(RetailF)
+```
+Below is an example of the data preparation for the whole dataset. The same process will be performed on each cluster.
+
+.	The dataset is rearranged in a way that all transactions with the same Invoice number and date will be grouped. All the products will be also grouped in one column, separated by a comma (this chunk will take a while to produce an output)
+```{r}
+
+Whole <- ddply(RetailF,c("InvoiceNo","Date_Order"),
+                       function(RetailF)paste(RetailF$Description,
+                       collapse = ","))
+head(Whole)
+
+```
+
+.	The InvoiceNo and the Date_Order are removed
+.	The remaining column is renamed "Products"
+.	The new dataset is saved as a csv file
+```{r}
+#set column InvoiceNo of dataframe Whole  
+Whole$InvoiceNo <- NULL
+#set column Date_Order of dataframe Whole
+Whole$Date_Order <- NULL
+#Rename column to Products
+colnames(Whole) <- c("Products")
+
+head(Whole)
+
+
+write.csv(Whole,"Association_Rules/Whole.csv", quote = FALSE, row.names = FALSE)
+
+```
+The same procedure is done for all cluster groups (we just need to subset them first).
+
+*_This chunk will take some minutes to process and won't produce any output. Instead, it will create a csv file per cluster group so they can be used in the next section (_04_AR_Selection.Rmd)_*
+
+```{r}
+
+##4 CLUSTERS
+###Kmeans
+
+#Group 1
+K4cl_g1<-subset(RetailF,RetailF$k4==1)
+
+K4cl_g1T <- ddply(K4cl_g1,c("InvoiceNo","Date_Order"),
+                       function(K4cl_g1)paste(K4cl_g1$Description,
+                       collapse = ","))
+
+K4cl_g1T$InvoiceNo<- NULL
+K4cl_g1T$Date_Order<-NULL
+
+colnames(K4cl_g1T)<- "Products"
+
+write.csv(K4cl_g1T,"Association_Rules/K4cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 2
+K4cl_g2<-subset(RetailF,RetailF$k4==2)
+
+K4cl_g2T <- ddply(K4cl_g2,c("InvoiceNo","Date_Order"),
+                       function(K4cl_g2)paste(K4cl_g2$Description,
+                       collapse = ","))
+
+K4cl_g2T$InvoiceNo<- NULL
+K4cl_g2T$Date_Order<-NULL
+
+colnames(K4cl_g2T)<- "Products"
+
+write.csv(K4cl_g2T,"Association_Rules/K4cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+#Group 3
+K4cl_g3<-subset(RetailF,RetailF$k4==3)
+
+K4cl_g3T <- ddply(K4cl_g3,c("InvoiceNo","Date_Order"),
+                       function(K4cl_g3)paste(K4cl_g3$Description,
+                       collapse = ","))
+
+K4cl_g3T$InvoiceNo<- NULL
+K4cl_g3T$Date_Order<-NULL
+
+colnames(K4cl_g3T)<- "Products"
+
+write.csv(K4cl_g3T,"Association_Rules/K4cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+#Group 4
+K4cl_g4<-subset(RetailF,RetailF$k4==4)
+
+K4cl_g4T <- ddply(K4cl_g4,c("InvoiceNo","Date_Order"),
+                       function(K4cl_g4)paste(K4cl_g4$Description,
+                       collapse = ","))
+
+K4cl_g4T$InvoiceNo<- NULL
+K4cl_g4T$Date_Order<-NULL
+
+colnames(K4cl_g4T)<- "Products"
+
+write.csv(K4cl_g4T,"Association_Rules/K4cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+##4 CLUSTERS
+### PAM Euclidean
+
+#Group 1
+PE4cl_g1<-subset(RetailF,RetailF$pe4==1)
+
+PE4cl_g1T <- ddply(PE4cl_g1,c("InvoiceNo","Date_Order"),
+                       function(PE4cl_g1)paste(PE4cl_g1$Description,
+                       collapse = ","))
+
+PE4cl_g1T$InvoiceNo<- NULL
+PE4cl_g1T$Date_Order<-NULL
+
+colnames(PE4cl_g1T)<- "Products"
+
+write.csv(PE4cl_g1T,"Association_Rules/PE4cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 2
+PE4cl_g2<-subset(RetailF,RetailF$pe4==2)
+
+PE4cl_g2T <- ddply(PE4cl_g2,c("InvoiceNo","Date_Order"),
+                       function(PE4cl_g2)paste(PE4cl_g2$Description,
+                       collapse = ","))
+
+PE4cl_g2T$InvoiceNo<- NULL
+PE4cl_g2T$Date_Order<-NULL
+
+colnames(PE4cl_g2T)<- "Products"
+
+write.csv(PE4cl_g2T,"Association_Rules/PE4cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 3
+PE4cl_g3<-subset(RetailF,RetailF$pe4==3)
+
+PE4cl_g3T <- ddply(PE4cl_g3,c("InvoiceNo","Date_Order"),
+                       function(PE4cl_g3)paste(PE4cl_g3$Description,
+                       collapse = ","))
+
+PE4cl_g3T$InvoiceNo<- NULL
+PE4cl_g3T$Date_Order<-NULL
+
+colnames(PE4cl_g3T)<- "Products"
+
+write.csv(PE4cl_g3T,"Association_Rules/PE4cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 4
+PE4cl_g4<-subset(RetailF,RetailF$pe4==4)
+
+PE4cl_g4T <- ddply(PE4cl_g4,c("InvoiceNo","Date_Order"),
+                       function(PE4cl_g4)paste(PE4cl_g4$Description,
+                       collapse = ","))
+
+PE4cl_g4T$InvoiceNo<- NULL
+PE4cl_g4T$Date_Order<-NULL
+
+colnames(PE4cl_g4T)<- "Products"
+
+write.csv(PE4cl_g4T,"Association_Rules/PE4cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+##4 CLUSTERS
+### PAM Manhattan
+
+
+#Group 1
+PM4cl_g1<-subset(RetailF,RetailF$pm4==1)
+
+PM4cl_g1T <- ddply(PM4cl_g1,c("InvoiceNo","Date_Order"),
+                       function(PM4cl_g1)paste(PM4cl_g1$Description,
+                       collapse = ","))
+
+PM4cl_g1T$InvoiceNo<- NULL
+PM4cl_g1T$Date_Order<-NULL
+
+colnames(PM4cl_g1T)<- "Products"
+
+write.csv(PM4cl_g1T,"Association_Rules/PM4cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 2
+PM4cl_g2<-subset(RetailF,RetailF$pm4==2)
+
+PM4cl_g2T <- ddply(PM4cl_g2,c("InvoiceNo","Date_Order"),
+                       function(PM4cl_g2)paste(PM4cl_g2$Description,
+                       collapse = ","))
+
+PM4cl_g2T$InvoiceNo<- NULL
+PM4cl_g2T$Date_Order<-NULL
+
+colnames(PM4cl_g2T)<- "Products"
+
+write.csv(PM4cl_g2T,"Association_Rules/PM4cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 3
+PM4cl_g3<-subset(RetailF,RetailF$pm4==3)
+
+PM4cl_g3T <- ddply(PM4cl_g3,c("InvoiceNo","Date_Order"),
+                       function(PM4cl_g3)paste(PM4cl_g3$Description,
+                       collapse = ","))
+
+PM4cl_g3T$InvoiceNo<- NULL
+PM4cl_g3T$Date_Order<-NULL
+
+colnames(PM4cl_g3T)<- "Products"
+
+write.csv(PM4cl_g3T,"Association_Rules/PM4cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 4
+PM4cl_g4<-subset(RetailF,RetailF$pm4==4)
+
+PM4cl_g4T <- ddply(PM4cl_g4,c("InvoiceNo","Date_Order"),
+                       function(PM4cl_g4)paste(PM4cl_g4$Description,
+                       collapse = ","))
+
+PM4cl_g4T$InvoiceNo<- NULL
+PM4cl_g4T$Date_Order<-NULL
+
+colnames(PM4cl_g4T)<- "Products"
+
+write.csv(PM4cl_g4T,"Association_Rules/PM4cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+## 5 CLUSTERS
+###K-means
+
+#Group 1
+K5cl_g1<-subset(RetailF,RetailF$k5==1)
+
+K5cl_g1T <- ddply(K5cl_g1,c("InvoiceNo","Date_Order"),
+                       function(K5cl_g1)paste(K5cl_g1$Description,
+                       collapse = ","))
+
+K5cl_g1T$InvoiceNo<- NULL
+K5cl_g1T$Date_Order<-NULL
+
+colnames(K5cl_g1T)<- "Products"
+
+write.csv(K5cl_g1T,"Association_Rules/K5cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 2
+K5cl_g2<-subset(RetailF,RetailF$k5==2)
+
+K5cl_g2T <- ddply(K5cl_g2,c("InvoiceNo","Date_Order"),
+                       function(K5cl_g2)paste(K5cl_g2$Description,
+                       collapse = ","))
+
+K5cl_g2T$InvoiceNo<- NULL
+K5cl_g2T$Date_Order<-NULL
+
+colnames(K5cl_g2T)<- "Products"
+
+write.csv(K5cl_g2T,"Association_Rules/K5cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 3
+K5cl_g3<-subset(RetailF,RetailF$k5==3)
+
+K5cl_g3T <- ddply(K5cl_g3,c("InvoiceNo","Date_Order"),
+                       function(K5cl_g3)paste(K5cl_g3$Description,
+                       collapse = ","))
+
+K5cl_g3T$InvoiceNo<- NULL
+K5cl_g3T$Date_Order<-NULL
+
+colnames(K5cl_g3T)<- "Products"
+
+write.csv(K5cl_g3T,"Association_Rules/K5cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 4
+K5cl_g4<-subset(RetailF,RetailF$k5==4)
+
+K5cl_g4T <- ddply(K5cl_g4,c("InvoiceNo","Date_Order"),
+                       function(K5cl_g4)paste(K5cl_g4$Description,
+                       collapse = ","))
+
+K5cl_g4T$InvoiceNo<- NULL
+K5cl_g4T$Date_Order<-NULL
+
+colnames(K5cl_g4T)<- "Products"
+
+write.csv(K5cl_g4T,"Association_Rules/K5cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 5
+K5cl_g5<-subset(RetailF,RetailF$k5==5)
+
+K5cl_g5T <- ddply(K5cl_g5,c("InvoiceNo","Date_Order"),
+                       function(K5cl_g5)paste(K5cl_g5$Description,
+                       collapse = ","))
+
+K5cl_g5T$InvoiceNo<- NULL
+K5cl_g5T$Date_Order<-NULL
+
+colnames(K5cl_g5T)<- "Products"
+
+write.csv(K5cl_g5T,"Association_Rules/K5cl_g5T.csv", quote = FALSE, row.names = FALSE)
+
+##5 CLUSTERS
+###PAM - Euclidean
+
+#Group 1
+PE5cl_g1<-subset(RetailF,RetailF$pe5==1)
+
+PE5cl_g1T <- ddply(PE5cl_g1,c("InvoiceNo","Date_Order"),
+                       function(PE5cl_g1)paste(PE5cl_g1$Description,
+                       collapse = ","))
+
+PE5cl_g1T$InvoiceNo<- NULL
+PE5cl_g1T$Date_Order<-NULL
+
+colnames(PE5cl_g1T)<- "Products"
+
+write.csv(PE5cl_g1T,"Association_Rules/PE5cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 2
+PE5cl_g2<-subset(RetailF,RetailF$pe5==2)
+
+PE5cl_g2T <- ddply(PE5cl_g2,c("InvoiceNo","Date_Order"),
+                       function(PE5cl_g2)paste(PE5cl_g2$Description,
+                       collapse = ","))
+
+PE5cl_g2T$InvoiceNo<- NULL
+PE5cl_g2T$Date_Order<-NULL
+
+colnames(PE5cl_g2T)<- "Products"
+
+write.csv(PE5cl_g2T,"Association_Rules/PE5cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 3
+PE5cl_g3<-subset(RetailF,RetailF$pe5==3)
+
+PE5cl_g3T <- ddply(PE5cl_g3,c("InvoiceNo","Date_Order"),
+                       function(PE5cl_g3)paste(PE5cl_g3$Description,
+                       collapse = ","))
+
+PE5cl_g3T$InvoiceNo<- NULL
+PE5cl_g3T$Date_Order<-NULL
+
+colnames(PE5cl_g3T)<- "Products"
+
+write.csv(PE5cl_g3T,"Association_Rules/PE5cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 4
+PE5cl_g4<-subset(RetailF,RetailF$pe5==4)
+
+PE5cl_g4T <- ddply(PE5cl_g4,c("InvoiceNo","Date_Order"),
+                       function(PE5cl_g4)paste(PE5cl_g4$Description,
+                       collapse = ","))
+
+PE5cl_g4T$InvoiceNo<- NULL
+PE5cl_g4T$Date_Order<-NULL
+
+colnames(PE5cl_g4T)<- "Products"
+
+write.csv(PE5cl_g4T,"Association_Rules/PE5cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 5
+PE5cl_g5<-subset(RetailF,RetailF$pe5==5)
+
+PE5cl_g5T <- ddply(PE5cl_g5,c("InvoiceNo","Date_Order"),
+                       function(PE5cl_g5)paste(PE5cl_g5$Description,
+                       collapse = ","))
+
+PE5cl_g5T$InvoiceNo<- NULL
+PE5cl_g5T$Date_Order<-NULL
+
+colnames(PE5cl_g5T)<- "Products"
+
+write.csv(PE5cl_g5T,"Association_Rules/PE5cl_g5T.csv", quote = FALSE, row.names = FALSE)
+
+##5 CLUSTERS
+###PAM - Manhattan
+
+#Group 1
+PM5cl_g1<-subset(RetailF,RetailF$pm5==1)
+
+PM5cl_g1T <- ddply(PM5cl_g1,c("InvoiceNo","Date_Order"),
+                       function(PM5cl_g1)paste(PM5cl_g1$Description,
+                       collapse = ","))
+
+PM5cl_g1T$InvoiceNo<- NULL
+PM5cl_g1T$Date_Order<-NULL
+
+colnames(PM5cl_g1T)<- "Products"
+
+write.csv(PM5cl_g1T,"Association_Rules/PM5cl_g1T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 2
+PM5cl_g2<-subset(RetailF,RetailF$pm5==2)
+
+PM5cl_g2T <- ddply(PM5cl_g2,c("InvoiceNo","Date_Order"),
+                       function(PM5cl_g2)paste(PM5cl_g2$Description,
+                       collapse = ","))
+
+PM5cl_g2T$InvoiceNo<- NULL
+PM5cl_g2T$Date_Order<-NULL
+
+colnames(PM5cl_g2T)<- "Products"
+
+write.csv(PM5cl_g2T,"Association_Rules/PM5cl_g2T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 3
+PM5cl_g3<-subset(RetailF,RetailF$pm5==3)
+
+PM5cl_g3T <- ddply(PM5cl_g3,c("InvoiceNo","Date_Order"),
+                       function(PM5cl_g3)paste(PM5cl_g3$Description,
+                       collapse = ","))
+
+PM5cl_g3T$InvoiceNo<- NULL
+PM5cl_g3T$Date_Order<-NULL
+
+colnames(PM5cl_g3T)<- "Products"
+
+write.csv(PM5cl_g3T,"Association_Rules/PM5cl_g3T.csv", quote = FALSE, row.names = FALSE)
+
+
+#Group 4
+PM5cl_g4<-subset(RetailF,RetailF$pm5==4)
+
+PM5cl_g4T <- ddply(PM5cl_g4,c("InvoiceNo","Date_Order"),
+                       function(PM5cl_g4)paste(PM5cl_g4$Description,
+                       collapse = ","))
+
+PM5cl_g4T$InvoiceNo<- NULL
+PM5cl_g4T$Date_Order<-NULL
+
+colnames(PM5cl_g4T)<- "Products"
+
+write.csv(PM5cl_g4T,"Association_Rules/PM5cl_g4T.csv", quote = FALSE, row.names = FALSE)
+
+
+
+#Group 5
+PM5cl_g5<-subset(RetailF,RetailF$pm5==5)
+
+PM5cl_g5T <- ddply(PM5cl_g5,c("InvoiceNo","Date_Order"),
+                       function(PM5cl_g5)paste(PM5cl_g5$Description,
+                       collapse = ","))
+
+PM5cl_g5T$InvoiceNo<- NULL
+PM5cl_g5T$Date_Order<-NULL
+
+colnames(PM5cl_g5T)<- "Products"
+
+write.csv(PM5cl_g5T,"Association_Rules/PM5cl_g5T.csv", quote = FALSE, row.names = FALSE)
+
+```

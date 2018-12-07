@@ -1,0 +1,308 @@
+---
+title: "Capstone"
+author: "Diana Moyano"
+date: '2018-11-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Installing and loading packages
+```{r, echo=FALSE, include=FALSE}
+
+packages <- c("rmarkdown", "knitr", "tidyr", "dplyr", "ggplot2", "plotly","magrittr", "sqldf","tidyverse", "arules", "arulesViz", "lubridate" )
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) {
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+
+library(rmarkdown)
+library(dplyr)
+library(knitr)
+library(magrittr)
+library(sqldf)
+library(ggplot2)
+library(tidyverse)
+library(arules)
+library(arulesViz)
+library(lubridate)
+
+#setwd("/Volumes/Eos/Google Drive/diana_moyano_ovalle/Courses/Git/Capstone_Project")
+```
+After comparing the different clustering arrangements based on their lift, we have selected the following ones for further analysis:
+
+-4 clusters: PAM Manhattan
+-5 clusters: PAM Euclidean
+
+These clusters is based on customers, hence we first need to bring back the RFM dataset. Each row is a customer and this table dimensions are recency, frequency and monetary.
+
+```{r}
+
+RFM<- read.csv("RFM_With_Clusters.csv", quote= "\"'", header=T)
+
+head(RFM)
+```
+
+#CLUSTERS BASIC STATS
+
+We will create a summary table with the following info:
+-Cluster number
+-Number of customer that belong to that cluster (count function)
+-Average, max and min Recency
+-Average, max and min Frequency
+-Average, max and min Monetary
+
+4 clusters: PAM Manhattan
+```{r}
+
+C4_PAMManh<-sqldf("select pm4 as PAMManhatt4, count(pm4) as NoCustomers, avg(Recency) as AvgRecency, avg(Frequency_1) as AvgFrequency, avg(Monetary) as AvgMonetary 
+      from RFM
+      group by pm4")
+C4_PAMManh<- C4_PAMManh %>% mutate( Percentage = round(100*NoCustomers/nrow(RFM),2))
+
+C4_PAMManh<-C4_PAMManh[,c(1,2,6,3:5)]
+
+C4_PAMManh
+
+```
+
+-5 clusters: PAM Euclidean
+```{r}
+
+C5_PAMEuc<-sqldf("select pe5 as PAMEuclidean5, count(pe5) as NoCustomers, avg(Recency) as AvgRecency, avg(Frequency_1) as AvgFrequency, avg(Monetary) as AvgMonetary  
+      from RFM
+      group by pe5")
+C5_PAMEuc<- C5_PAMEuc %>% mutate( Percentage = round(100*NoCustomers/nrow(RFM),2))
+
+C5_PAMEuc<-C5_PAMEuc[,c(1,2,6,3:5)]
+
+C5_PAMEuc
+
+```
+
+Both arrangements provide relevant information about potential groups in the online retail's customer base. However, The PAM Euclidean metric for 5 clusters seems to show a clearer delimitation of the groups, as this arrangement provides information about some of the most profitable customers, some of the most loyal ones or some customers that the company might lose if there is no action.
+
+###_Arrangement selected: 5 Clusters - PAM Euclidean Metric_
+
+#IN-DEPTH ANALYSIS OF THE CLUSTERS
+
+##Customer-Centric Approach
+
+```{r}
+
+C5_PAMEuc<-sqldf("select pe5 as PAMEuclidean5, count(pe5) as NoCustomers, avg(Recency) as AvgRecency, max(Recency) as MaxRecency, min(Recency) as MinRecency, 
+avg(Frequency_1) as AvgFrequency, max(Frequency_1) as MaxFrequency, min(Frequency_1) as MinFrequency,
+avg(Monetary) as AvgMonetary, max(Monetary) as MaxMonetary, min(Monetary) as MinMonetary
+      from RFM
+      group by pe5")
+C5_PAMEuc<- C5_PAMEuc %>% mutate( Percentage = round(100*NoCustomers/nrow(RFM),2))
+
+C5_PAMEuc<-C5_PAMEuc[,c(1,2,12,3:11)]
+
+C5_PAMEuc
+```
+We can come up with a set of basich traits of each cluster
+
+.	#1: 10.88% of the dataset
+    o	The most frequent customers
+    o	The second highest in avg. monetary
+    o	Customers who have purchased recently the most
+    
+.	#2: 16.52% of the dataset
+    o	The second most frequent customers
+    o	The most profitable ones in avg. monetary
+    o	3rd in recency
+    
+.	#3: 42.36% of the dataset
+    o	3rd most frequent customers
+    o	Their average monetary is the lowest of all
+    o	They represent the biggest cluster in the dataset
+    o	2nd customers who have purchased recently
+    
+.	#4: 16.11% of the dataset
+    o	Its recency is the second highest. 
+    o	Its frequency is the second lowest
+    o	The average monetary is similar to the 3rd group
+    o	There might be different alternatives to bring this group back through some promotional tools
+    
+    
+ .	#5: 14.12% of the dataset 
+    o	Its recency is the highest. They might not be customers anymore
+    o	Its frequency is the lowest
+    o	The average monetary is slightly higher to the 3rd group
+
+Additional analysis will is provided in the final report
+
+##Product-Centric Approach
+
+We will bring back the sets from the association rules analysis.
+
+*_NOTE: The next chuck won't show any output, as the information we require is the next section._*
+
+```{r, include=FALSE}
+#Group 1
+
+G1<- read.transactions('Association_Rules/PE5cl_g1T.csv', format = 'basket', sep=',')
+
+G1<-apriori(G1, parameter = list(supp=0.01, conf=0.8,maxlen=4))
+
+
+#Group 2
+
+
+G2<- read.transactions('Association_Rules/PE5cl_g2T.csv', format = 'basket', sep=',')
+
+G2 <-apriori(G2, parameter = list(supp=0.01, conf=0.8,maxlen=4))
+
+
+#Group 3
+
+
+G3<- read.transactions('Association_Rules/PE5cl_g3T.csv', format = 'basket', sep=',')
+
+G3 <-apriori(G3, parameter = list(supp=0.01, conf=0.8,maxlen=4))
+
+#Group 4
+
+G4<- read.transactions('Association_Rules/PE5cl_g4T.csv', format = 'basket', sep=',')
+
+G4<- apriori(G4, parameter = list(supp=0.01, conf=0.8,maxlen=4))
+
+
+#Group 5
+
+G5<- read.transactions('Association_Rules/PE5cl_g5T.csv', format = 'basket', sep=',')
+
+G5<- apriori(G5, parameter = list(supp=0.01, conf=0.8,maxlen=4))
+
+```
+
+
+Each group will have the following info
+
+-Most relevant rules (non-redundant)
+-Interactive plot with x=support, y=confidence, color=lift (deep red means a higher lift)
+-Rule network: better visualization of the rules present in the group
+-Parallel analysis: another way to show the relationship among the items. This will be explained in more detail in the final report 
+
+
+##1st Group Analysis
+
+```{r}
+
+s1 <- which(colSums(is.subset(G1, G1)) > 1)
+length(s1) 
+U.G1 <- G1[-s1] 
+
+inspect(U.G1[1:10])
+
+
+subRules1<-U.G1[quality(U.G1)$confidence>0.4]
+#Plot SubRules
+plotly_arules(subRules1)
+
+Top10Rules1 <- head(subRules1, n = 10, by = "confidence")
+plot(Top10Rules1, method = "graph",  engine = "htmlwidget")
+
+
+# Filter top 20 rules with highest lift
+HLift1<-head(subRules1, n=20, by="lift")
+plot(HLift1, method="paracoord")
+
+```
+
+##2nd Group Analysis
+
+
+```{r}
+
+s2 <- which(colSums(is.subset(G2, G2)) > 1)
+length(s2) 
+U.G2 <- G2[-s2] 
+
+inspect(U.G2[1:10])
+
+# Filter rules with confidence greater than 0.4 or 40%
+subRules2<-U.G2[quality(U.G2)$confidence>0.4]
+#Plot SubRules
+plotly_arules(subRules2)
+
+Top10Rules2 <- head(subRules2, n = 10, by = "confidence")
+plot(Top10Rules2, method = "graph",  engine = "htmlwidget")
+
+HLift2<-head(subRules2, n=20, by="lift")
+plot(HLift2, method="paracoord")
+```
+
+##3rd Group Analysis
+
+```{r}
+inspect(G3)
+
+# Filter rules with confidence greater than 0.4 or 40%
+subRules3<-G3[quality(G3)$confidence>0.4]
+#Plot SubRules
+plotly_arules(subRules3)
+
+Top10Rules3 <- head(subRules3, by = "confidence")
+plot(Top10Rules3, method = "graph",  engine = "htmlwidget")
+
+HLift3<-head(subRules3, by="lift")
+plot(HLift3, method="paracoord")
+```
+##4th Group Analysis
+```{r}
+
+
+s4 <- which(colSums(is.subset(G4, G4)) > 1)
+length(s4) 
+U.G4 <- G4[-s4] 
+
+inspect(U.G4)
+
+# Filter rules with confidence greater than 0.4 or 40%
+subRules4<-U.G4[quality(U.G4)$confidence>0.4]
+#Plot SubRules
+plotly_arules(subRules4)
+
+Top10Rules4 <- head(subRules4, by = "confidence")
+plot(Top10Rules4, method = "graph",  engine = "htmlwidget")
+
+HLift4<-head(subRules4, by="lift")
+plot(HLift4, method="paracoord")
+```
+
+
+##5th Group Analysis
+
+```{r}
+
+
+s5 <- which(colSums(is.subset(G5, G5)) > 1)
+length(s5) 
+U.G5 <- G5[-s5] 
+
+inspect(U.G5[1:10])
+
+# Filter rules with confidence greater than 0.4 or 40%
+subRules5<-U.G5[quality(U.G5)$confidence>0.4]
+#Plot SubRules
+plotly_arules(subRules5)
+
+Top10Rules5 <- head(subRules5, n = 10, by = "confidence")
+plot(Top10Rules5, method = "graph",  engine = "htmlwidget")
+
+HLift5<-head(subRules5, n=20, by="lift")
+plot(HLift5, method="paracoord")
+```
+
+
+*Further analysis is provided in the final report*
+
+
+END :)

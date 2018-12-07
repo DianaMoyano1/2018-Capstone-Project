@@ -1,0 +1,249 @@
+---
+title: "Capstone"
+author: "Diana Moyano"
+date: '2018-11-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Installing and loading packages
+```{r, echo=FALSE, include=FALSE}
+
+packages <- c("rmarkdown", "knitr", "dplyr","magrittr", "sqldf", "lubridate", "cluster", "stringr", "fpc", "factoextra" )
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) {
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+
+library(rmarkdown)
+library(dplyr)
+library(cluster)
+library(magrittr)
+library(sqldf)
+library(stringr)
+library(fpc)
+library(lubridate)
+library(factoextra)
+
+#setwd("/Volumes/Eos/Google Drive/diana_moyano_ovalle/Courses/Git/Capstone_Project")
+```
+
+
+```{r}
+
+Retail<- read.csv("RetailClean.csv", quote= "\"'", header=T)
+
+Retail<- Retail %>% mutate(Date_Order = as.Date(Date_Order, format="%Y-%m-%d")) %>% mutate(CustomerID = factor(CustomerID)) %>% mutate(InvoiceNo = factor(InvoiceNo))
+
+head(Retail)
+```
+
+## CLUSTERING ANALYSIS
+
+#Data Preparation
+
+In order to have a customer-centric approach via clustering, the dataset will require an arrangement for RFM analysis. As previously explained in the literature review, this method is usually used for clustering analysis when we information about the customerID, date and monetary value are available in every transaction.
+
+Recency: How recently did the customer purchase?
+
+Frequency: How often do they purchase?
+
+Monetary Value: How much do they spend (each time on average)?
+
+
+*NOTE: we are using the summarise function from the dplyr package. The plyr package HAS TO BE DEACTIVATED, as it creates conflict with the dplyr package and it wont't generate the desired output*
+
+```{r}
+#detach(package:plyr, unload=TRUE) ## Unloads the plyr package in case it is loaded
+
+LastTDate<-max(Retail$Date_Order) #Last recorded transaction date
+
+#The function below will group all transactions under a Customer ID, and then it will calculate the recency, frequency and monetary of each one
+RFM<-Retail %>% 
+  group_by(CustomerID) %>%
+  summarise(Recency = as.Date(paste(LastTDate))-max(Date_Order), Frequency_1= n_distinct(InvoiceNo), Monetary=round(sum(Revenue)/n_distinct(InvoiceNo),digits=2))
+
+#Recency is shown in number of days (time format). The function below wil turn this into numbers
+
+RFM<-RFM %>% mutate(Recency=as.numeric(Recency)) 
+
+head(RFM)
+```
+
+We will have two datasets: 
+-RFM: The original dataset 
+-RFMs: The dataset that will be used for clustering analysis
+
+Once the results are obtained from the RFMs dataset, these will added to the RFM dataset in order to continue with association rules.
+
+The data was also scaled as some of the clustering methods use euclidean distance. Monetary, for instance, has way higher values that would affect the recency and frequency. 
+
+Finally, each row name was assigned with its corresponding customer ID.
+```{r, message=FALSE, warning=FALSE}
+RFMs<-RFM
+
+row.names(RFMs) <- RFMs$CustomerID
+
+RFMs$CustomerID<- NULL
+
+RFMs<- scale(RFMs)
+
+head(RFMs)
+
+
+
+```
+## Determining the right amount of clusters
+
+
+In clustering, the goal is usually to get high similarity within each group, and low similarity between each group.
+
+The following methods will take into consideration, as well as he (between_SS/total_SS) ratio in order to determine how good this algorithm is performing. 
+
+-total_SS is the sum of squared distances of each observation to the overall sample average
+
+-between_SS is the sum of squared distances of the cluster averages to the overall average. When this number is high, it means that the variance among the cluster is high and the similarity between the groups is lower. 
+
+To sum up, a high amount in between_SS is desired when looking for the optimal number of clusters.
+
+###_ELBOW METHOD_
+
+The elbow method looks at the variance as a function of the number of clusters selected. The optimal number of clusters is found, so adding another cluster does not give more relevant information (explained by the variance).
+```{r}
+fviz_nbclust(RFMs, kmeans, method = "wss")
+```
+K=3, K=4 and K=5 seem to be good candiates to be considered
+
+###_SILHOUETTE METHOD_
+This one measures the quality of a clustering. In other words, it determines how well each object is positioned in its own cluster. 
+
+```{r}
+fviz_nbclust(RFMs, kmeans, method = "silhouette")
+```
+Under the silhouette method, K=4 is the optimal amount, followed by K=5. We will select both arrangements for further analysis. 
+
+##K-Means, PAM-Euclidean and PAM-Manhattan methods for clustering process
+
+At this point, we will consider 3 different clustering methods for a clustering arrangement of both k=4 and k=5.
+
+
+###_K-Means_
+This method calculates centroids based on the square distance between the points and the centroid. The objective is to minimize the square distance of each point from the cluster center. This is performed in a number of iterations until the centers of the clusters stop changing.
+
+```{r}
+#nstart option attempts multiple initial configurations and reports on the best one. For example, adding nstart=25 will generate 25 initial random centroids and choose the best one for the algorithm. 
+
+k4 <- kmeans(RFMs, 4, nstart = 25)
+
+k5 <- kmeans(RFMs, 5, nstart = 25)
+
+
+
+# plots to compare
+
+p4 <- fviz_cluster(k4, geom = "point",  data = RFMs) + ggtitle("k = 4")
+p5 <- fviz_cluster(k5, geom = "point",  data = RFMs) + ggtitle("k = 5")
+
+
+library(gridExtra)
+grid.arrange(p4,p5, nrow = 1)
+
+
+```
+
+
+###_PAM clustering with Euclidean Distances_
+
+Partitioning Around Medoids (PAM) is the method that, in contrast to k-means, chooses datapoints as centers.
+
+This one is more robust to noise and outliers compared to k-means.
+```{r}
+
+p4 <- pam(RFMs, 4)
+
+p5 <- pam(RFMs, 5)
+
+
+# plots to compare
+pp4 <- fviz_cluster(p4, geom = "point",  data = RFMs) + ggtitle("k = 4")
+pp5 <- fviz_cluster(p5, geom = "point",  data = RFMs) + ggtitle("k = 5")
+
+
+grid.arrange(pp4,pp5, nrow = 1)
+
+```
+
+###_PAM clustering with Manhattan Distances_
+
+This methods calculates clusters by minimizing the absolute distance between the points and the medoids, instead of the sum of square distances (method used by k-means and PAM-Euclidean).
+
+
+```{r}
+
+pm4 <- pam(RFMs, 4, metric = "manhattan")
+
+pm5 <- pam(RFMs, 5, metric = "manhattan")
+
+
+
+# plots to compare
+ppm4 <- fviz_cluster(pm4, geom = "point",  data = RFMs) + ggtitle("k = 4")
+ppm5 <- fviz_cluster(pm5, geom = "point",  data = RFMs) + ggtitle("k = 5")
+
+
+grid.arrange(ppm4,ppm5, nrow = 1)
+
+
+```
+
+
+##OVERVIEW OF ALL CLUSTER ARRANGEMENTS
+
+We are now adding the number cluster for each observation under Kmeans and PAM (Euclidean and Manhattan) clustering methods for 4 and 5 clusters
+
+```{r}
+
+#K MEANS
+RFM$k4<-k4$cluster
+RFM$k5<-k5$cluster
+
+#PAM - EUCLIDEAN
+RFM$pe4<-p4$clustering
+RFM$pe5<-p5$clustering
+
+#PAM - MANHATTAN
+RFM$pm4<-pm4$clustering
+RFM$pm5<-pm5$clustering
+
+head(RFM, 10)
+
+
+```
+We finally create a csv file of this dataset for further analysis (after selecting the cluster to analyse)
+```{r}
+
+write.csv(RFM,("RFM_With_Clusters.csv"), row.names = FALSE)
+
+```
+For our next stage (Association Rules), we will need to join both the Retail and the RFM datasets, having in common the CustomerID.Quantity, unit price and revenue will be no longer needed.
+```{r}
+
+RetailF<-sqldf("SELECT r.InvoiceNo, r.Description, r.CustomerID, r.Date_Order, c.k4, c.k5, c.pe4, c.pe5, c.pm4, c.pm5
+FROM Retail as r
+INNER JOIN RFM as c ON r.CustomerID=c.CustomerID")
+
+head(RetailF, 10)
+
+```
+
+```{r}
+
+write.csv(RetailF,("Association_Rules/Retail_w_Clusters.csv"), row.names = FALSE)
+
+```

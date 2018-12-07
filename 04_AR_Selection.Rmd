@@ -1,0 +1,413 @@
+---
+title: "Capstone"
+author: "Diana Moyano"
+date: '2018-11-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Installing and loading packages
+```{r, echo=FALSE, include=FALSE}
+
+packages <- c("rmarkdown", "knitr", "tidyr", "dplyr", "ggplot2", "plotly","magrittr", "sqldf","tidyverse", "arules", "arulesViz", "lubridate" )
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) {
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+
+
+library(ggplot2)
+library(rmarkdown)
+library(knitr)
+library(tidyverse)
+library(magrittr)
+library(arules)
+library(arulesViz)
+library(lubridate)
+library(dplyr)
+
+#setwd("/Volumes/Eos/Google Drive/diana_moyano_ovalle/Courses/Git/Capstone_Project")
+```
+
+# ASSOCIATION RULES CLUSTER SELECTION
+
+##Determining the min. Support and Confidence Levels
+
+We will select one of the groups created in the Association_Rules_Preprocessing file
+
+In this case, we will select the 1st group of the 4-cluster arrangement under K-means arrangement
+
+We will assess the lift by having different combinations of the min. support and confidence levels:
+
+
+We started by using a support level of 10% and a conf. level of 80%
+
+```{r, warning=FALSE, error=FALSE, messgae=FALSE }
+
+K4cl_g1M<- read.transactions('Association_Rules/K4cl_g1T.csv', format = 'basket', sep=',')
+
+s10.c80<-summary(apriori(K4cl_g1M, parameter = list(supp=0.1, conf=0.80,maxlen=10)))
+
+s10.c80
+
+```
+
+There is no set of rules with that combination. Let's try supp=10% and conf=70%
+
+```{r results='hide'}
+
+s10.c70<-summary(apriori(K4cl_g1M, parameter = list(supp=0.1, conf=0.70,maxlen=10)))
+
+s10.c70
+
+```
+
+It resulted in 0 set of rules. 
+
+At this point, it is important to understand that this matrix has a masive amount of products (3837 unique items), which means at least thousands of combinations. A support of 10% may be too high for the nature of this dataset.
+
+Let's consider a min support of 1%
+
+```{r, results='hide' }
+
+s01.c70<-summary(apriori(K4cl_g1M, parameter = list(supp=0.01, conf=0.70,maxlen=10)))
+
+s01.c70
+
+```
+
+34 rules were found.
+
+In order to find a combination with a good lift, we will do some tests with the following parameters:
+
+Min. support
+-1%
+-1.5%
+
+Min. confidence
+-70%
+-75%
+-80%
+```{r, echo=FALSE, message=FALSE}
+
+
+#min support 1%
+s01.c75<-summary(apriori(K4cl_g1M, parameter = list(supp=0.01, conf=0.75,maxlen=10)))
+
+s01.c80<-summary(apriori(K4cl_g1M, parameter = list(supp=0.01, conf=0.80,maxlen=10)))
+
+
+#Min support: 1.5%
+
+s015.c70<-summary(apriori(K4cl_g1M, parameter = list(supp=0.015, conf=0.75,maxlen=10)))
+
+s015.c75<-summary(apriori(K4cl_g1M, parameter = list(supp=0.015, conf=0.75,maxlen=10)))
+
+s015.c80<-summary(apriori(K4cl_g1M, parameter = list(supp=0.051, conf=0.80,maxlen=10)))
+
+#min support 1%
+s01.c70
+
+s01.c75
+
+s01.c80
+
+
+#Min support: 1.5%
+
+s015.c70
+
+s015.c75
+
+s015.c80
+
+```
+
+
+Combinations with 1.5% support do not provide much information: 2 out of 3 produce only 4 set of rules. Discounts and promotions only based on 4 set of rules may not be enough.
+
+A 1% support gives more set of rules, and the highest lift is presented when the confidence is 80%
+
+###_A min. support of 1% and a min. confidence of 80% were chosen to evaluate the performance of each clustering method._
+
+We will also limit the maxlen to 3, as the algorithm is showing sets of up to 3 items.
+
+Now we will assess each cluster with these parameters
+
+##LIFT RESULTS
+
+This piece of code will take some time in processing and will give so many "EOF within quoted string" messages. The function will read all the csv files and will transform them into transaction formats. 
+
+*_NOTE: The next code won't show any output, as the information we require is in the next chunk._*
+
+
+```{r, include=FALSE}
+
+##### 4 CLUSTERS ------ K-MEANS #####
+
+#Group 1
+K4cl_g1M<- read.transactions('Association_Rules/K4cl_g1T.csv', format = 'basket', sep=',')
+
+K4cl_g1M<-summary(apriori(K4cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 2
+
+K4cl_g2M<- read.transactions('Association_Rules/K4cl_g2T.csv', format = 'basket', sep=',')
+
+K4cl_g2M <-summary(apriori(K4cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+K4cl_g3M<- read.transactions('Association_Rules/K4cl_g3T.csv', format = 'basket', sep=',')
+
+K4cl_g3M <-summary(apriori(K4cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 4
+
+
+K4cl_g4M<- read.transactions('Association_Rules/K4cl_g4T.csv', format = 'basket', sep=',')
+
+K4cl_g4M<- summary(apriori(K4cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=4)))
+
+
+##### 4 CLUSTERS ------ PAM EUCLIDEAN #####
+
+#Group 1
+
+PE4cl_g1M<- read.transactions('Association_Rules/PE4cl_g1T.csv', format = 'basket', sep=',')
+
+PE4cl_g1M<-summary(apriori(PE4cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 2
+
+
+PE4cl_g2M<- read.transactions('Association_Rules/PE4cl_g2T.csv', format = 'basket', sep=',')
+
+PE4cl_g2M <-summary(apriori(PE4cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+PE4cl_g3M<- read.transactions('Association_Rules/PE4cl_g3T.csv', format = 'basket', sep=',')
+
+PE4cl_g3M <-summary(apriori(PE4cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=4)))
+
+#Group 4
+
+
+PE4cl_g4M<- read.transactions('Association_Rules/PE4cl_g4T.csv', format = 'basket', sep=',')
+
+PE4cl_g4M<- summary(apriori(PE4cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+##### 4 CLUSTERS ------ PAM MANHATTAN #####
+
+#Group 1
+
+
+PM4cl_g1M<- read.transactions('Association_Rules/PM4cl_g1T.csv', format = 'basket', sep=',')
+
+PM4cl_g1M<-summary(apriori(PM4cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 2
+
+
+PM4cl_g2M<- read.transactions('Association_Rules/PM4cl_g2T.csv', format = 'basket', sep=',')
+
+PM4cl_g2M <-summary(apriori(PM4cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+
+PM4cl_g3M<- read.transactions('Association_Rules/PM4cl_g3T.csv', format = 'basket', sep=',')
+
+PM4cl_g3M <-summary(apriori(PM4cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 4
+
+PM4cl_g4M<- read.transactions('Association_Rules/PM4cl_g4T.csv', format = 'basket', sep=',')
+
+PM4cl_g4M<- summary(apriori(PM4cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+##### 5 CLUSTERS ------ KMEANS #####
+
+#Group 1
+
+
+K5cl_g1M<- read.transactions('Association_Rules/K5cl_g1T.csv', format = 'basket', sep=',')
+
+K5cl_g1M<-summary(apriori(K5cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 2
+
+
+K5cl_g2M<- read.transactions('Association_Rules/K5cl_g2T.csv', format = 'basket', sep=',')
+
+K5cl_g2M <-summary(apriori(K5cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+
+K5cl_g3M<- read.transactions('Association_Rules/K5cl_g3T.csv', format = 'basket', sep=',')
+
+K5cl_g3M <-summary(apriori(K5cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+
+K5cl_g4M<- read.transactions('Association_Rules/K5cl_g4T.csv', format = 'basket', sep=',')
+
+K5cl_g4M<- summary(apriori(K5cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 5
+
+
+K5cl_g5M<- read.transactions('Association_Rules/K5cl_g5T.csv', format = 'basket', sep=',')
+
+K5cl_g5M<- summary(apriori(K5cl_g5M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+##### 5 CLUSTERS ------ PAM EUCLIDEAN #####
+
+
+#Group 1
+
+PE5cl_g1M<- read.transactions('Association_Rules/PE5cl_g1T.csv', format = 'basket', sep=',')
+
+PE5cl_g1M<-summary(apriori(PE5cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 2
+
+
+PE5cl_g2M<- read.transactions('Association_Rules/PE5cl_g2T.csv', format = 'basket', sep=',')
+
+PE5cl_g2M <-summary(apriori(PE5cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+
+PE5cl_g3M<- read.transactions('Association_Rules/PE5cl_g3T.csv', format = 'basket', sep=',')
+
+PE5cl_g3M <-summary(apriori(PE5cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 4
+
+PE5cl_g4M<- read.transactions('Association_Rules/PE5cl_g4T.csv', format = 'basket', sep=',')
+
+PE5cl_g4M<- summary(apriori(PE5cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 5
+
+PE5cl_g5M<- read.transactions('Association_Rules/PE5cl_g5T.csv', format = 'basket', sep=',')
+
+PE5cl_g5M<- summary(apriori(PE5cl_g5M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+
+##### 5 CLUSTERS ------ PAM MANHATTAN #####
+
+#Group 1
+
+
+PM5cl_g1M<- read.transactions('Association_Rules/PM5cl_g1T.csv', format = 'basket', sep=',')
+
+PM5cl_g1M<-summary(apriori(PM5cl_g1M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+#Group 2
+
+
+PM5cl_g2M<- read.transactions('Association_Rules/PM5cl_g2T.csv', format = 'basket', sep=',')
+
+PM5cl_g2M <-summary(apriori(PM5cl_g2M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 3
+
+
+PM5cl_g3M<- read.transactions('Association_Rules/PM5cl_g3T.csv', format = 'basket', sep=',')
+
+PM5cl_g3M <-summary(apriori(PM5cl_g3M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 4
+
+
+PM5cl_g4M<- read.transactions('Association_Rules/PM5cl_g4T.csv', format = 'basket', sep=',')
+
+PM5cl_g4M<- summary(apriori(PM5cl_g4M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+#Group 5
+
+
+PM5cl_g5M<- read.transactions('Association_Rules/PM5cl_g5T.csv', format = 'basket', sep=',')
+
+PM5cl_g5M<- summary(apriori(PM5cl_g5M, parameter = list(supp=0.01, conf=0.8,maxlen=3)))
+
+
+```
+
+##4 Clusters - K-Means
+```{r}
+K4cl_g1M
+K4cl_g2M
+K4cl_g3M
+K4cl_g4M
+```
+
+
+##4 Clusters - PAM Euclidean
+```{r}
+PE4cl_g1M
+PE4cl_g2M
+PE4cl_g3M
+PE4cl_g4M
+```
+
+
+##4 Clusters - PAM Manhattan
+```{r}
+PM4cl_g1M
+PM4cl_g2M
+PM4cl_g3M
+PM4cl_g4M
+```
+
+
+##5 Clusters - K-Means
+```{r}
+K5cl_g1M
+K5cl_g2M
+K5cl_g3M
+K5cl_g4M
+K5cl_g5M
+```
+
+
+##5 Clusters - PAM Euclidean
+```{r}
+PE5cl_g1M
+PE5cl_g2M
+PE5cl_g3M
+PE5cl_g4M
+PE5cl_g5M
+```
+
+
+##5 Clusters - PAM Manhattan
+```{r}
+PM5cl_g1M
+PM5cl_g2M
+PM5cl_g3M
+PM5cl_g4M
+PM5cl_g5M
+```
+
+Among the 4-cluster methods, PAM Manhattan seemed to perform better than the rest, while PAM Euclidean worked best for the 5-cluster arrangement.
+
+For a more comprehensive view of the results, please refer to the project report under the *_Results_* section
+
+These 2 arrangements will be analyzed in depth in the next section (Results.Rmd)

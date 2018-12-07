@@ -1,0 +1,178 @@
+---
+title: "Capstone"
+author: "Diana Moyano"
+date: '2018-11-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#install.packages("knitr")
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Installing and loading packages
+```{r, echo=FALSE, include=FALSE}
+
+packages <- c("rmarkdown", "knitr", "tidyr", "dplyr","magrittr", "sqldf","stringr")
+if ( length(missing_pkgs <- setdiff(packages, rownames(installed.packages()))) > 0) {
+  message("Installing missing package(s): ", paste(missing_pkgs, collapse = ", "))
+  install.packages(missing_pkgs)
+}
+
+library(rmarkdown)
+library(dplyr)
+library(magrittr)
+library(sqldf)
+library(stringr)
+
+#setwd("/Volumes/Eos/Google Drive/diana_moyano_ovalle/Courses/Git/Capstone_Project")
+```
+
+#DATA PREPARATION
+
+```{r}
+
+
+Retail <- read.csv('Online Retail.csv', header=T)
+
+Retail<-subset(Retail, Retail$Country=="United Kingdom") #We will only focus on clients in the United Kingdom
+
+sapply(Retail, function(x) sum(is.na(x))) #The only NAs present in the dataset are related to the CustomerID field. These transactions are not customer related, hence they are not part of this project's scope
+
+Retail<-subset(Retail, rowSums(is.na(Retail))==0) #We delete the rows with NAs
+
+#Extract day, month and year from InvoiceDate and add a new column named Date_Order
+Retail<- Retail %>% mutate(Date_Order = as.Date(str_extract(InvoiceDate,"[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}"), format="%m/%d/%Y"))
+
+Retail<- Retail %>% mutate( Revenue = UnitPrice*Quantity) #We create a variable for Revenue = Unit Price times the quantity
+
+Retail<-Retail[,-c(5,8)] #Deleting the Invoice Date and the country columns
+
+head(Retail)
+```
+##OUTLIERS, NEGATIVE VALUES AND CANCELLED TRANSACTIONS
+
+
+###Negative Values
+
+```{r}
+
+summary(Retail$Quantity)
+summary(Retail$UnitPrice)
+summary(Retail$Revenue)
+
+```
+
+We can observe that the unit price only has positive values, whereas the quantity and sales contain negative values. It's important to remember that the Revenue column is the result of the quantity times the unit price. Since the unit price doesn't have negative values, we can infer that all those negative values come from the quantity.
+
+We will now analyze these values in depth
+
+
+```{r}
+paste("number of transactions with negative quantity amounts:", nrow(subset(Retail, Retail$Quantity<=0))) 
+
+paste("Percentage of Neg quantity compare to the whole dataset", round(100*nrow(subset(Retail, Retail$Quantity<=0))/nrow(Retail),2),"%")
+
+head(subset(Retail, Retail$Quantity<=0))
+```
+
+
+There are 7533 transactions with negative quantities, representing aproximately 2% of the whole dataset. We can also notice that the invoice number starts with "C", followed by a number. We will separate that C from the invoice number and add it into a new column called "Cancelled".
+```{r}
+
+Retail<- Retail %>% mutate(Cancelled = str_extract(InvoiceNo,"C")) # Creates a column for a Cancelled transaction
+
+Retail<- Retail %>% mutate(InvoiceNo = str_extract(InvoiceNo,"[0-9.]+$")) #Removes th C at the beginning of the Invoice Number
+
+head(Retail)
+
+```
+
+###Cancelled Transactions
+
+It is important to understand what a cancelled item means and what assumptions are worth considering 
+
+-1. Is the number of transactions with negative quantity exactly the same as the cancelled ones?
+-2. Is sum of revenue of all the cancelled transactions the same as the one obtained from all the transactions with negative quantities?
+
+```{r}
+paste("Is the number of transactions with negative quantity exactly the same as the cancelled ones?", sum(Retail$Quantity<=0) == nrow(subset(Retail,Retail$Cancelled=="C")))
+
+paste(sum((subset(Retail, Retail$Cancelled=="C"))$Revenue), "is the sum of revenue of all cancelled transactions (-540518.2). This one will be now compared to the revenue of all transactions with negative quantities and it should equal to 0 in order to validate the second assumption")
+
+paste("Is sum of revenue of all the cancelled transactions the same as the one obtained from all the transactions with negative quantities?",sum((subset(Retail, Retail$Cancelled=="C"))$Revenue)==sum((subset(Retail, Retail$Quantity<=0))$Revenue)) 
+ 
+```
+Both assumptions are true. 
+
+Now we subset those cancelled transactions
+```{r}
+Cancelled<-subset(Retail, Retail$Cancelled=="C")
+head(Cancelled)
+```
+
+By subsetting a set with cancelled items, we can notice that the first observation does not have the name of a product under the description. Instead we see that it is related to a discount made for that particular invoice number. This may suggest that those transactions that do not start with a number are special cases.
+
+To have a broad idea of what other Stock Codes types are present, we will create a subset for unique values that do not start with a number.
+
+```{r}
+a<-Cancelled[-grep("^[0-9]", Cancelled$StockCode), ] #Subset containing all non-numeric stock codes
+
+as.vector(unique(a$StockCode)) #These are all the non-numeric stock codes
+
+paste("The non-numeric stock codes for cancelled transactions are D (discount), POST (postage), M (Manual) and CRUK (Commission), representing ", round(100*nrow(a)/nrow(Retail),2), "% of all transactions")
+
+```
+Let's delete these ones, as they do not provide relevant information for the scope of this project
+
+```{r}
+
+Retail<-Retail[grep("^[0-9]", Retail$StockCode), ] 
+
+```
+
+###Numeric Cancelled transactions
+
+What about all numeric cancelled transacions? (the ones that do not start with a letter). Are all these linked to previous transactions? If so, we can delete them, as they may not provide any relevant insights when applying a clustering algorithm (they were cancelled out, hence the customer did not want them). It is also important to note that we are not only deleting the cancelled ones, but also their counterpart in order not to affect the whole distribution.
+
+We first create a column with the absolute value of the sales, and then we will look for duplicates based on 3 variables:
+-Absolute value in sales
+-Invoice number 
+-Description 
+
+Once detected, we will delete both the first transaction and the cancelled one
+
+```{r}
+
+Retail<- Retail %>% mutate(AbsoluteRevenue = abs(Revenue))
+
+Retail<-Retail[!(duplicated(Retail[c("InvoiceNo","Description", "AbsoluteRevenue")]) | duplicated(Retail[c("InvoiceNo","Description", "AbsoluteRevenue")], fromLast = TRUE)), ] #Deletes any duplicate based on the 3 dimensions above mentioned. The "fromLast" feature makes the algorithm to start from the last row (the most recent transaction), so it deletes the first transaction (the old one).
+
+Retail<-subset(Retail,is.na(Retail$Cancelled))#Deletes all cancelled transactions
+Retail<-subset(Retail,Retail$Revenue<20000) #It deletes the remaining outliers
+
+boxplot(Retail$Revenue)
+title("Revenue")
+
+```
+
+
+Finally, we delete the stock code, Cancelled and Absolute Revenue columns and we now have the subset ready for clustering analysis.
+
+```{r}
+
+Retail<-Retail[,-c(2,9,10)] 
+
+head(Retail)
+
+```
+
+
+We will save this file for clustering analysis
+```{r}
+
+write.csv(Retail,("RetailClean.csv"), row.names = FALSE)
+
+```
