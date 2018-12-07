@@ -70,7 +70,7 @@ s10.c70
 
 It resulted in 0 set of rules. 
 
-At this point, it is important to understand that this matrix has a masive amount of products (3837 unique items), which means at least thousands of combinations. A support of 10% may be too high for the nature of this dataset.
+At this point, it is important to understand that this matrix has a massive number of products (3837 unique items), which means at least thousands of combinations. A support of 10% may be too high for the nature of this dataset.
 
 Let's consider a min support of 1%
 
