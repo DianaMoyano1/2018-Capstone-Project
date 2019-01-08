@@ -1,4 +1,4 @@
-# PURCHASING BEHAVIOR INA B2B ONLINE RETAILER
+# PURCHASING BEHAVIOR IN A B2B ONLINE RETAILER
 
 **_Are there any purchasing patterns in these online retailer’s UK customers based on their transactions?_**
 
