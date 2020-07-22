@@ -4,7 +4,7 @@
 
 The question above can be solved from different perspectives. For instance, this database can be analyzed taking a **product-centric approach** through the use of association rules and the Apriori algorithm in order to understand what products are usually bought together, allowing the business to offer special discounts and promotions that can increase sales in the future. Another way to analyze it is through a **customer-centric approach**, as this can provide information on patterns or special needs these customers may have; clustering may be the strategy to consider in order to get those insights relevant for the business. 
 
-## ORDER IN WHICH THE CODE SHOULD BE RAN
+## ORDER IN WHICH THE CODE SHOULD BE RUN
 
 1. 01_DataWrangling.Rmd
 2. 02_Clustering.Rmd
